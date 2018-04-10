@@ -126,7 +126,7 @@ function benchmarkRealistic(){
       i = 0;
       setTimeout(()=>{
         ts = Date.now();
-        pop();
+        // pop();
       }, 1200);
     }
   }
@@ -146,11 +146,11 @@ function benchmarkRealistic(){
       exitHandler('test code');
     }
   }
-  // pop();
-  push();
+  pop();
+  // push();
 }
 
 
-testFunctionality();
+// testFunctionality();
 // benchmarkRaw();
-// benchmarkRealistic();
+benchmarkRealistic();

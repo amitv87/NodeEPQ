@@ -57,7 +57,7 @@ Msg* NewMsg(uint16_t size, unsigned char* _data){
   return msg;
 }
 
-bool Queue::SaveQToFile(MsgQueue* q, uint64_t ts){
+bool Queue::SaveQToFile(MsgQueue* q, uint64_t ts, bool clear){
   std::ostringstream fname;
   fname << dbPath << name << "_" << ts;
   FILE* pFile = fopen(fname.str().c_str(), "wb");
@@ -66,90 +66,106 @@ bool Queue::SaveQToFile(MsgQueue* q, uint64_t ts){
   uint64_t stts = getTS();
 
   Msg* msg;
-  while(q->size() > 0){
-    msg = q->front();
-    q->pop_front();
-    fwrite(msg, 1, MSG_HEADER_SIZE + GetSize(msg), pFile);
-    numMessage += 1;
-    FreeMsg(msg);
+
+  if(clear){
+    while(q->size() > 0){
+      msg = q->front();
+      q->pop_front();
+      fwrite(msg, 1, MSG_HEADER_SIZE + GetSize(msg), pFile);
+      numMessage += 1;
+      FreeMsg(msg);
+    }
   }
+  else{
+    MsgQueue::iterator it = q->begin();
+    while (it != q->end()){
+      msg = *it;
+      fwrite(msg, 1, MSG_HEADER_SIZE + GetSize(msg), pFile);
+      numMessage += 1;
+      it += 1;
+    }
+  }
+
   fclose(pFile);
   LOG(L_MSG) << "q " << name << ": dumped " << numMessage << " messages to " << ts << " in " << getTimeDiff(&stts) << " ms";
   return true;
 }
 
-bool Queue::SaveTqToFile(){
+bool Queue::LoadQFromFile(MsgQueue* q, uint64_t fileNo){
   bool rc = false;
-  MsgQueue* _q = tq;
-  tq = new MsgQueue();
-  uint64_t ts = getTS();
-  rc = SaveQToFile(_q, ts);
-  delete _q;
-  files.push_back(ts);
+
+  std::ostringstream fname;
+  fname << dbPath << name << "_" << fileNo;
+
+  struct stat buffer;
+  if(stat(fname.str().c_str(), &buffer) == 0){
+    size_t fileSize = buffer.st_size;
+
+    unsigned char* buff = (unsigned char*) malloc (sizeof(unsigned char)*fileSize);
+
+    if(!buff){
+      LOG(L_FAT) << "alloc failed";
+      goto end;
+    }
+
+    unsigned char* orgBuff = buff;
+
+    uint64_t ts = getTS();
+
+    FILE* pFile = fopen(fname.str().c_str(), "rb");
+    long long bytesRead = fread(buff, 1, fileSize, pFile);
+    if(bytesRead != buffer.st_size){
+      LOG(L_ERR) << fname.str() << " size mismatch, " << " bytesRead: " << bytesRead << ", against fileSize: " << fileSize;
+    }
+
+    uint32_t numMessage = 0;
+
+    while(bytesRead > 0){
+      if(bytesRead <= MSG_HEADER_SIZE) break;
+      uint16_t size = ((uint16_t*)(buff))[0];
+      buff += MSG_HEADER_SIZE;
+      bytesRead -= MSG_HEADER_SIZE;
+      if(bytesRead < size) break;
+      Msg* msg = NewMsg(size, buff);
+      buff += size;
+      bytesRead -= size;
+      q->push_back(msg);
+      numMessage += 1;
+    }
+
+    remove(fname.str().c_str());
+
+    free(orgBuff);
+    fclose(pFile);
+
+    LOG(L_MSG) << "q " << name << ": loaded " << numMessage << " messages from "  << fileNo  << " in " << getTimeDiff(&ts) << " ms";
+
+    rc = numMessage > 0 ? true : false;
+  }
+  else{
+    FBEG << fname.str() << " not found";
+  }
+  end:
   return rc;
 }
 
 bool Queue::LoadHqFromFile(){
   bool rc = false;
   if(files.size() > 0){
-    files.sort();
-    files.unique();
-
     uint64_t fileNo = files.front();
-    std::ostringstream fname;
-    fname << dbPath << name << "_" << fileNo;
     files.pop_front();
-
-    struct stat buffer;
-    if(stat(fname.str().c_str(), &buffer) == 0){
-      size_t fileSize = buffer.st_size;
-
-      unsigned char* buff = (unsigned char*) malloc (sizeof(unsigned char)*fileSize);
-
-      if(!buff){
-        LOG(L_FAT) << "alloc failed";
-        goto end;
-      }
-
-      unsigned char* orgBuff = buff;
-
-      uint64_t ts = getTS();
-
-      FILE* pFile = fopen(fname.str().c_str(), "rb");
-      long long bytesRead = fread(buff, 1, fileSize, pFile);
-      if(bytesRead != buffer.st_size){
-        LOG(L_ERR) << fname.str() << " size mismatch, " << " bytesRead: " << bytesRead << ", against fileSize: " << fileSize;
-      }
-
-      uint32_t numMessage = 0;
-
-      while(bytesRead > 0){
-        if(bytesRead <= MSG_HEADER_SIZE) break;
-        uint16_t size = ((uint16_t*)(buff))[0];
-        buff += MSG_HEADER_SIZE;
-        bytesRead -= MSG_HEADER_SIZE;
-        if(bytesRead < size) break;
-        Msg* msg = NewMsg(size, buff);
-        buff += size;
-        bytesRead -= size;
-        hq->push_back(msg);
-        numMessage += 1;
-      }
-
-      remove(fname.str().c_str());
-
-      free(orgBuff);
-      fclose(pFile);
-
-      LOG(L_MSG) << "q " << name << ": loaded " << numMessage << " messages from "  << fileNo  << " in " << getTimeDiff(&ts) << " ms";
-
-      rc = numMessage > 0 ? true : false;
-    }
-    else{
-      FBEG << fname.str() << " not found";
-    }
+    rc = LoadQFromFile(hq, fileNo);
   }
-end:
+  return rc;
+}
+
+bool Queue::LoadTqFromFile(){
+  bool rc = false;
+  if(files.size() > 0){
+    uint64_t fileNo = files.back();
+    files.pop_back();
+    rc = LoadQFromFile(tq, fileNo);
+  }
   return rc;
 }
 
@@ -185,28 +201,36 @@ Queue::Queue(char* _name, char* _dbPath){
   else
     LOG(L_MSG) << "q " << name << ": no dump files found";
 
+  files.sort();
+  files.unique();
+
   while(LoadHqFromFile() && hq->size() < MAX_Q_SIZE / 10);
+
+  LoadTqFromFile();
 
   FEND;
 }
 
 void Queue::DumpToDisk(){
-  if(hq->size() > 0) SaveQToFile(hq, 1);
-  if(tq->size() > 0) SaveQToFile(tq, getTS());
-  files.clear();
+  SaveQToFile(hq, 1, false);
+  SaveQToFile(tq, std::numeric_limits<uint64_t>::max(), false);
 }
 
 bool Queue::Push(Msg* msg){
   pushCount += 1;
   if(unlikely(tq->size() >= MAX_Q_SIZE)){
-    if(tq->size() >= MAX_Q_SIZE){
-      if(hq->size() == 0 && files.size() == 0){
-        MsgQueue* _q = hq;
-        hq = tq;
-        tq = _q;
-      }
-      else
-        SaveTqToFile();
+    if(hq->size() == 0 && files.size() == 0){
+      MsgQueue* _q = hq;
+      hq = tq;
+      tq = _q;
+    }
+    else{
+      MsgQueue* _q = tq;
+      tq = new MsgQueue();
+      uint64_t ts = getTS();
+      SaveQToFile(_q, ts);
+      delete _q;
+      files.push_back(ts);
     }
   }
   tq->push_back(msg);
@@ -216,12 +240,12 @@ bool Queue::Push(Msg* msg){
 Msg* Queue::Pop(){
   Msg* msg = nullptr;
   if(hq->size() > 0){
-  popAgainFromHQ:
+  popFromHQ:
     msg = hq->front();
     hq->pop_front();
   }
   else if(LoadHqFromFile()){
-    goto popAgainFromHQ;
+    goto popFromHQ;
   }
   else if(tq->size() > 0){
     msg = tq->front();

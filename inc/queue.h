@@ -19,9 +19,10 @@ class Queue{
   uint64_t popCount{0};
   uint64_t pushCount{0};
 
-  bool SaveTqToFile();
   bool LoadHqFromFile();
-  bool SaveQToFile(MsgQueue* q, uint64_t ts);
+  bool LoadTqFromFile();
+  bool SaveQToFile(MsgQueue* q, uint64_t ts, bool clear = true);
+  bool LoadQFromFile(MsgQueue* q, uint64_t ts);
 
 public:
   char* name;
