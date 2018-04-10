@@ -92,8 +92,7 @@ private:
 #define FEND if(L_TRC > LOG_LEVEL); else _FLOG("END")
 
 #ifndef __FILENAME__
-#include <string.h>
-#define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+#define __FILENAME__ __FILE__
 #endif
 
 #define LOG(sev) if(sev > LOG_LEVEL); else LOG_IT(__FILENAME__, __PRETTY_FUNCTION__, __LINE__, sev)
