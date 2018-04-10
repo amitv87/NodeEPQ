@@ -6,6 +6,8 @@
 using namespace v8;
 using namespace Nan;
 
+#define STR_NUM(key, val) String::NewFromUtf8(isolate, key), Integer::New(isolate, val)
+#define STR_STR(key, val) String::NewFromUtf8(isolate, key), String::NewFromUtf8(isolate, val)
 #define NAN_SET_METHOD(name,mehtod) Nan::Set(target, Nan::New(name).ToLocalChecked(), Nan::GetFunction(Nan::New<FunctionTemplate>(mehtod)).ToLocalChecked())
 
 QueueFactory* qf = nullptr;
@@ -40,12 +42,12 @@ NAN_METHOD(GetStats){
   for(std::list<QStat*>::iterator it=lst.begin(); it != lst.end(); ++it){
     QStat* stat = *it;
     Local<Object> obj = Nan::New<Object>();
-    obj->Set(String::NewFromUtf8(isolate, "qname"), String::NewFromUtf8(isolate, stat->qname));
-    obj->Set(String::NewFromUtf8(isolate, "files"), Integer::New(isolate, stat->files));
-    obj->Set(String::NewFromUtf8(isolate, "hqSize"), Integer::New(isolate, stat->hqSize));
-    obj->Set(String::NewFromUtf8(isolate, "tqSize"), Integer::New(isolate, stat->tqSize));
-    obj->Set(String::NewFromUtf8(isolate, "popCount"), Integer::New(isolate, stat->popCount));
-    obj->Set(String::NewFromUtf8(isolate, "pushCount"), Integer::New(isolate, stat->pushCount));
+    obj->Set(STR_STR("qname", stat->qname));
+    obj->Set(STR_NUM("files", stat->files));
+    obj->Set(STR_NUM("hqSize", stat->hqSize));
+    obj->Set(STR_NUM("tqSize", stat->tqSize));
+    obj->Set(STR_NUM("popCount", stat->popCount));
+    obj->Set(STR_NUM("pushCount", stat->pushCount));
     result_list->Set(i, obj);
     i += 1;
   }
