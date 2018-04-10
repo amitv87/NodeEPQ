@@ -75,7 +75,7 @@ private:
     #endif
 
     snprintf(buf, sizeof buf, fmt, tmbuf, tv.tv_usec / 1000);
-    _buffer << "[" << buf;
+    _buffer << "EPQ[" << buf;
   }
   void putColor(){
     if(COLOR_LOG){

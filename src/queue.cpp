@@ -15,7 +15,7 @@ const size_t MAX_Q_SIZE = 1000000;
 const uint8_t MSG_HEADER_SIZE = sizeof(uint16_t);
 
 void _mkdir(char *dir) {
-  char tmp[256];
+  char tmp[1024];
   char *p = NULL;
   size_t len;
 
