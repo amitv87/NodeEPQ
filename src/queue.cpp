@@ -1,5 +1,7 @@
 #include <log.h>
 #include <glob.h>
+#include <limits>
+#include <string.h>
 #include <unistd.h>
 #include <sys/stat.h>
 
