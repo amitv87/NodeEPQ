@@ -287,7 +287,7 @@ void QueueFactory::SetLogLevel(int l, bool c){
 QueueFactoryImpl::QueueFactoryImpl(char* _dbPath){
   size_t len = strlen(_dbPath);
   dbPath = new char[len + 2];
-  memset(dbPath, 0, sizeof(len + 2));
+  memset(dbPath, 0, len + 2);
   strcpy(dbPath, _dbPath);
   if(len > 0){
     if(dbPath[len - 1] != '/') dbPath[len] = '/';
