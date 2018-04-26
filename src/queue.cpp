@@ -174,7 +174,7 @@ bool Queue::LoadTqFromFile(){
 Queue::Queue(char* _name, char* _dbPath){
   FBEG;
   name = new char[strlen(_name) + 1];
-  memset(name, 0, sizeof(strlen(_name) + 1));
+  memset(name, 0, strlen(_name) + 1);
   strcpy(name, _name);
 
   dbPath = _dbPath;

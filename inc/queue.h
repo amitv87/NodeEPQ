@@ -22,7 +22,7 @@ class Queue{
   bool LoadHqFromFile();
   bool LoadTqFromFile();
   bool SaveQToFile(MsgQueue* q, uint64_t ts, bool clear = true);
-  bool LoadQFromFile(MsgQueue* q, uint64_t ts);
+  bool LoadQFromFile(MsgQueue* q, uint64_t fileNo);
 
 public:
   char* name;
